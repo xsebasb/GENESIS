@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Chat</title>
+</head>
+<body>
+<div class="container mt-5">
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Chat</h5>
+            <!-- Área del chat -->
+            <div id="chatArea">
+                <div th:each="chatLine : ${chatHistory}">
+                    <p th:text="${chatLine}"></p>
+                </div>
+            </div>
+            <!-- Formulario para enviar mensajes -->
+            <form th:action="@{/chat/send}" method="post">
+                <div class="input-group">
+                    <input type="text" class="form-control" name="message" placeholder="Escribe un mensaje...">
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="submit">Enviar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>
