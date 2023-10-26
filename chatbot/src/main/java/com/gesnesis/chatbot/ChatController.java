@@ -2,6 +2,8 @@ package com.gesnesis.chatbot;
 
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,35 +12,34 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Controller
 @RequestMapping("/chat")
 public class ChatController {
 
-    private final ChatService chatService;
-    private List<String> chatHistory = new ArrayList<>();
+    @Autowired
+    private ChatService chatService;
 
     @Autowired
-    public ChatController(ChatService chatService) {
-        this.chatService = chatService;
-    }
+    private SimpMessagingTemplate template;
 
-    @GetMapping
-    public String chatPage(Model model) {
-        model.addAttribute("chatHistory", chatHistory);
-        return "chat";
+    @GetMapping("/startSession")
+    public ResponseEntity<Map<String, Object>> startSession() {
+        // Aquí, puedes llamar a algún método en tu servicio para iniciar una sesión
+        chatService.init();  // Esto es solo un ejemplo, en realidad querrás modularizar esto
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "success");
+        response.put("message", "Session started");
+        return ResponseEntity.ok(response);
     }
-
     @PostMapping("/send")
-    public String sendMessage(@RequestParam String message, Model model) {
-        JSONObject response = chatService.sendMessage(message);
-
-        // Añadiendo mensajes al historial de chat
-        chatHistory.add("You: " + message);
-        chatHistory.add("Bot: " + response.toString());
-
-        model.addAttribute("chatHistory", chatHistory);
-        return "chat";
+    public ResponseEntity<Void> handleUserMessage(@RequestParam String message) {
+        String response = chatService.sendMessage(message);
+        template.convertAndSend("/topic/messages", response);
+        return ResponseEntity.ok().build();
     }
 }
+

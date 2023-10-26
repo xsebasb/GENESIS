@@ -2,29 +2,103 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <title>Chat</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
 </head>
 <body>
 <div class="container mt-5">
-    <div class="card">
-        <div class="card-body">
-            <h5 class="card-title">Chat</h5>
-            <!-- Área del chat -->
-            <div id="chatArea">
-                <div th:each="chatLine : ${chatHistory}">
-                    <p th:text="${chatLine}"></p>
-                </div>
-            </div>
-            <!-- Formulario para enviar mensajes -->
-            <form th:action="@{/chat/send}" method="post">
-                <div class="input-group">
-                    <input type="text" class="form-control" name="message" placeholder="Escribe un mensaje...">
-                    <div class="input-group-append">
-                        <button class="btn btn-primary" type="submit">Enviar</button>
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">Chat</div>
+                <div class="card-body" id="chatArea">
+                    <div th:each="chatLine : ${chatHistory}">
+                        <p th:text="${chatLine}"></p>
                     </div>
                 </div>
-            </form>
+                <div class="card-footer">
+                    <form th:action="@{/chat/send}" method="post" id="messageForm">
+                        <div class="input-group">
+                            <input type="text" class="form-control" name="message" placeholder="Escribe un mensaje...">
+                            <div class="input-group-append">
+                                <button class="btn btn-primary" type="submit">Enviar</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+    document.getElementById("messageForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        var message = e.target.message.value;
+
+        // Imprimir el mensaje que estás enviando
+        addMessageToChat("Me: " + message);
+
+        fetch('/chat/send', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                'message': message
+            })
+        });
+    });
+
+    var socket = new SockJS('/chat-websocket');
+    var stompClient = Stomp.over(socket);
+
+stompClient.connect({}, function (frame) {
+    stompClient.subscribe('/topic/messages', function (messageOutput) {
+        console.log("Raw message output:", messageOutput.body);
+
+        try {
+            var message = JSON.parse(messageOutput.body);
+            console.log("Parsed message:", message);
+
+            // Comprobar si es un mensaje 'Outbound' y si tiene texto
+            if (message.body && message.body.direction === "Outbound" && message.body.text) {
+                addMessageToChat("Bot: " + message.body.text);
+            }
+        } catch (e) {
+            console.error("Error parsing message:", e);
+        }
+    });
+});
+
+
+
+    function addMessageToChat(messageText) {
+        var chatArea = document.getElementById("chatArea");
+        var messageElement = document.createElement("p");
+        messageElement.innerText = messageText;
+        chatArea.appendChild(messageElement);
+        console.log(messageText);
+    }
+
+        document.addEventListener('DOMContentLoaded', (event) => {
+        fetch('/chat/startSession', {
+            method: 'GET'
+        }).then(response => response.json()).then(data => {
+            console.log('Sesión iniciada:', data);
+            // Puedes hacer algo con los datos si es necesario
+        });
+    });
+
+</script>
+
 </body>
 </html>

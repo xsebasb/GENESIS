@@ -4,6 +4,8 @@ import cloud.genesys.webmessaging.sdk.GenesysCloudRegionWebSocketHosts;
 import cloud.genesys.webmessaging.sdk.WebMessagingClient;
 import cloud.genesys.webmessaging.sdk.model.*;
 import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -19,7 +21,8 @@ public class ChatService {
     private WebMessagingClient client;
     private String token;  // UUID para la sesión
     private CompletableFuture<Void> connectionFuture = new CompletableFuture<>();
-
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
     @PostConstruct
     public void init() {
         WebMessagingClient.SessionListener sessionListener = new WebMessagingClient.SessionListener() {
@@ -30,8 +33,12 @@ public class ChatService {
 
             @Override
             public void structuredMessage(StructuredMessage structuredMessage, String s) {
-                System.out.println("Structured message received: " + s);
+                System.out.println("Received structured message: " + s);
+
+                // Simulamos enviar este mensaje al frontend
+                sendToWebSocket(structuredMessage, s);
             }
+
 
             @Override
             public void presignedUrlResponse(PresignedUrlResponse presignedUrlResponse, String s) {
@@ -96,7 +103,7 @@ public class ChatService {
         client.addSessionListener(sessionListener);
 
         String deploymentId = "cae51d61-033e-48c4-a73c-a27abef96fd5";
-        String origin = "app.mypurecloud.com";
+        String origin = "app.mypurecloud.com"; 
         client.connect(deploymentId, origin);
 
         // Espera hasta que la conexión esté establecida
@@ -105,11 +112,11 @@ public class ChatService {
         // Una vez que esté conectado, procede a configurar la sesión
         configureSession(deploymentId);
 
-        new Thread(this::startUserInputListener).start();
+        //new Thread(this::startUserInputListener).start();
 
     }
 
-    private void startUserInputListener() {
+   /* private void startUserInputListener() {
         try (Scanner scanner = new Scanner(System.in)) {
             while (true) {
                 System.out.println("Please type a message:");
@@ -119,30 +126,24 @@ public class ChatService {
                 sendMessage(userMessage);
             }
         }
-    }
+    }*/
     private void configureSession(String deploymentId) {
         this.token = UUID.randomUUID().toString();
 
         // Utilizando el método con dos parámetros: deploymentId y token.
         client.configureSession(deploymentId, this.token);
-
         System.out.println("Configured session with deploymentId: " + deploymentId + " and token: " + this.token);
     }
-
-    public JSONObject sendMessage(String messageText) {
+    public void sendToWebSocket(StructuredMessage structuredMessage, String s) {
+        // Convertir el StructuredMessage a un formato adecuado para el frontend si es necesario.
+        // Por ahora, simplemente enviamos el String 's'
+        messagingTemplate.convertAndSend("/topic/messages", s);
+    }
+    public String sendMessage(String messageText) {
         try {
-            JSONObject messageJson = new JSONObject();
-            messageJson.put("action", "onMessage");
-            messageJson.put("token", this.token);
 
-            JSONObject innerMessage = new JSONObject();
-            innerMessage.put("type", "Text");
-            innerMessage.put("text", messageText);
-
-            messageJson.put("message", innerMessage);
-
-            client.sendMessage(messageJson.toString());
-            return new JSONObject();  // Representaría la respuesta, que deberías obtener del SDK.
+            client.sendMessage(messageText);
+            return messageText;  // Representaría la respuesta, que deberías obtener del SDK.
         } catch (Exception e) {
             System.out.println("Error sending message: " + e.getMessage());
             // Lógica de manejo de errores adicional si es necesario
